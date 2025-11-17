@@ -1,0 +1,25 @@
+{
+  "features": [
+    "loan_int_rate",
+    "person_income",
+    "loan_percent_income",
+    "loan_amnt",
+    "credit_score",
+    "person_age"
+  ],
+  "numeric": [
+    "loan_int_rate",
+    "person_income",
+    "loan_percent_income",
+    "loan_amnt",
+    "credit_score",
+    "person_age"
+  ],
+  "categorical": [],
+  "target": "loan_status",
+  "problem_type": "classification",
+  "target_classes": [
+    0,
+    1
+  ]
+}

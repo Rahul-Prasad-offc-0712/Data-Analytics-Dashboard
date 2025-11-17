@@ -1,70 +1,331 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Visualization</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <meta charset="utf-8" />
+  <title>Visualization</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 </head>
+
 <body class="bg-light">
-  <nav class="navbar navbar-light bg-white shadow-sm mb-4">
-    <div class="container">
-      <a class="navbar-brand" href="{{ url_for('operation') }}">Visualization</a>
-      <div>
-        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('operation') }}">Back</a>
-      </div>
-    </div>
-  </nav>
+  <nav class="navbar navbar-light bg-white shadow-sm mb-4">
+    <div class="container">
+      <a class="navbar-brand" href="{{ url_for('operation') }}">Visualization</a>
+      <div>
+        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('operation') }}">Back</a>
+      </div>
+    </div>
+  </nav>
 
-  <main class="container">
-    <h4 class="mb-3">Interactive Visualization</h4>
+  <main class="container">
 
-    <form method="post" class="row g-2" action="{{ url_for('visualization_page') }}">
-      <div class="col-md-4">
-        <label class="form-label">X column</label>
-        <select name="x" class="form-select" required>
-          {% for c in cols %}
-            <option value="{{ c }}">{{ c }}</option>
-          {% endfor %}
-        </select>
-      </div>
+    <h4 class="mb-3">Interactive Visualization</h4>
 
-      <div class="col-md-4">
-        <label class="form-label">Y column</label>
-        <select name="y" class="form-select" required>
-          {% for c in cols %}
-            <option value="{{ c }}">{{ c }}</option>
-          {% endfor %}
-        </select>
-      </div>
+    <form method="POST" class="mb-4" id="load-form">
+      <div class="row align-items-end">
+        <div class="col-md-6">
+          <label class="form-label"><strong>Select Dataset:</strong></label>
+          <select name="dataset" id="dataset" class="form-select">
+            <option value="">-- Choose Dataset --</option>
+            {% for f in files %}
+              <option value="{{ f }}" {% if f==selected_file %}selected{% endif %}>{{ f }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <button type="submit" class="btn btn-primary mt-3">Load Dataset</button>
+        </div>
+      </div>
+    </form>
 
-      <div class="col-md-4">
-        <label class="form-label">Chart type</label>
-        <select name="chart_type" class="form-select">
-          <option value="scatter">Scatter</option>
-          <option value="bar">Bar</option>
-          <option value="box">Box</option>
-          <option value="histogram">Histogram</option>
-        </select>
-      </div>
+    {% if selected_file %}
+      <h5 class="mt-3">Preview of <strong>{{ selected_file }}</strong></h5>
+      <div class="table-responsive mb-3">
+        {{ preview_html | safe }}
+      </div>
+    {% endif %}
 
-      <div class="col-12">
-        <button class="btn btn-primary mt-2">Generate Plot</button>
-      </div>
-    </form>
+        <form method="POST" id="viz-form">
+      <input type="hidden" name="dataset" value="{{ selected_file }}">
 
-    <div class="mt-4">
-      {% if plot_html %}
-        <div class="card p-3">
-          {{ plot_html | safe }}
-        </div>
-      {% else %}
-        <p class="text-muted">Create an interactive plot by choosing columns and chart type above.</p>
-      {% endif %}
-    </div>
+      <div class="row g-3">
 
-    <a href="{{ url_for('operation') }}" class="btn btn-secondary mt-3">Back to Menu</a>
-  </main>
+        <div class="col-md-4">
+          <label class="form-label">Analysis Type</label>
+          <select id="analysis_type" name="analysis_type" class="form-select" onchange="onAnalysisChange()">
+            <option value="">-- Select --</option>
+            <option value="univariate">Univariate</option>
+            <option value="bivariate">Bivariate</option>
+            <option value="multivariate">Multivariate</option>
+            <option value="time_series">Time Series</option>
+          </select>
+        </div>
+
+        <div class="col-md-4" id="x_div" style="display:none;">
+          <label class="form-label">X Column</label>
+          <select id="x_select" name="x" class="form-select"></select>
+        </div>
+
+        <div class="col-md-4" id="y_div" style="display:none;">
+          <label class="form-label">Y Column</label>
+          <select id="y_select" name="y" class="form-select"></select>
+        </div>
+
+        <div class="col-md-4" id="z_div" style="display:none;">
+          <label class="form-label">Z Column (Size / Z axis)</label>
+          <select id="z_select" name="z" class="form-select"></select>
+        </div>
+
+        <div class="col-md-12" id="multi_div" style="display:none;">
+          <label class="form-label">Select Multiple Columns</label>
+          <select id="multi_select" name="multi_cols" class="form-select" multiple size="6"></select>
+        </div>
+
+        <div class="col-md-4" id="chart_div" style="display:none;">
+          <label class="form-label">Chart Type</label>
+          <select id="chart_select" name="chart_type" class="form-select" onchange="onChartChange()"></select>
+        </div>
+
+        <div class="col-12">
+          <button class="btn btn-success mt-2" type="submit">Generate Plot</button>
+        </div>
+
+      </div>
+    </form>
+
+        <div class="mt-4" id="plot_area">
+      {% if plot_html %}
+        <div class="card p-3">
+          {{ plot_html | safe }}
+        </div>
+      {% else %}
+        {% if selected_file %}
+          <p class="text-muted">Select parameters and click Generate Plot.</p>
+        {% else %}
+          <p class="text-muted">Select a dataset to begin.</p>
+        {% endif %}
+      {% endif %}
+    </div>
+
+  </main>
+
+<script>
+  // ---------------- INITIAL DATA FROM BACKEND ----------------
+  const numericCols = {{ numeric_cols | tojson | default([]) }};
+  const categoricalCols = {{ categorical_cols | tojson | default([]) }};
+  const dateTimeCols = {{ date_time_cols | tojson | default([]) }};
+
+  // ---------------- CHART OPTIONS ----------------
+  const options = {
+    univariate: [
+      {v: "hist", t: "Histogram"},
+      {v: "kde", t: "Density Plot"},
+      {v: "box", t: "Box Plot"},
+      {v: "violin", t: "Violin Plot"},
+      {v: "count", t: "Count Plot"},
+      {v: "pie", t: "Pie Chart"}
+    ],
+    bivariate: [
+      {v: "scatter", t: "Scatter Plot"},
+      {v: "bubble", t: "Bubble Plot"},
+      {v: "line", t: "Line Plot"},
+      {v: "bar", t: "Bar Chart"},
+      {v: "hexbin", t: "Hexbin Plot"},
+      {v: "regression", t: "Regression (OLS)"},
+      {v: "joint", t: "Joint Plot"}
+    ],
+    multivariate: [
+      {v: "heatmap", t: "Correlation Heatmap"},
+      {v: "pairplot", t: "Pairplot"},
+      {v: "parallel", t: "Parallel Coordinates"},
+      {v: "3d_scatter", t: "3D Scatter Plot"}
+    ],
+    time_series: [
+      {v: "ts_line", t: "Time Series Line Plot"},
+      {v: "decomposition", t: "Seasonal Decomposition"},
+      {v: "acf_pacf", t: "ACF/PACF Plot"},
+      {v: "rolling_mean", t: "Rolling Mean"},
+      {v: "candlestick", t: "Candlestick Plot (OHLC)"}
+    ]
+  };
+
+  // ---------------- HELPER ----------------
+  function fillSelect(select, items) {
+    select.innerHTML = "";
+    items.forEach(c => {
+      const o = document.createElement("option");
+      o.value = o.text = c;
+      select.appendChild(o);
+    });
+  }
+
+  // ---------------- MAIN HANDLER ----------------
+  function onAnalysisChange() {
+    const type = document.getElementById("analysis_type").value;
+
+    document.getElementById("x_div").style.display = "none";
+    document.getElementById("y_div").style.display = "none";
+    document.getElementById("z_div").style.display = "none";
+    document.getElementById("multi_div").style.display = "none";
+    document.getElementById("chart_div").style.display = "none";
+
+    // Reset labels
+    document.querySelector("#x_div .form-label").textContent = "X Column";
+    document.querySelector("#y_div .form-label").textContent = "Y Column";
+    document.querySelector("#z_div .form-label").textContent = "Z Column (Size / Z axis)";
+    document.querySelector("#multi_div .form-label").textContent = "Select Multiple Columns";
+
+    if (!type) return;
+
+    document.getElementById("chart_div").style.display = "block";
+    setChartOptions(type);
+
+    if (type === "univariate") {
+      document.getElementById("x_div").style.display = "block";
+      fillSelect(document.getElementById("x_select"), numericCols.concat(categoricalCols));
+
+    } else if (type === "bivariate") {
+      document.getElementById("x_div").style.display = "block";
+      document.getElementById("y_div").style.display = "block";
+      fillSelect(document.getElementById("x_select"), numericCols.concat(categoricalCols));
+      fillSelect(document.getElementById("y_select"), numericCols);
+
+    } else if (type === "multivariate") {
+      // ########## START FIX ##########
+      // Do nothing here. Let onChartChange handle visibility
+      // ########## END FIX ##########
+
+    } else if (type === "time_series") {
+      document.getElementById("x_div").style.display = "block";
+      document.getElementById("y_div").style.display = "block";
+      
+      document.querySelector("#x_div .form-label").textContent = "Date/Time Column";
+      document.querySelector("#y_div .form-label").textContent = "Value Column";
+
+      fillSelect(document.getElementById("x_select"), dateTimeCols);
+      fillSelect(document.getElementById("y_select"), numericCols);
+    }
+
+    onChartChange();
+  }
+
+  // ---------------- CHART CHANGE RULES ----------------
+  function onChartChange() {
+    const chart = document.getElementById("chart_select").value;
+    const analysis = document.getElementById("analysis_type").value;
+
+    // Get all select elements and divs
+    const xSel = document.getElementById("x_select");
+    const ySel = document.getElementById("y_select");
+    const zSel = document.getElementById("z_select");
+    const multiSel = document.getElementById("multi_select");
+    
+    const xDiv = document.getElementById("x_div");
+    const yDiv = document.getElementById("y_div");
+    const zDiv = document.getElementById("z_div");
+    const multiDiv = document.getElementById("multi_div");
+
+    if (analysis === "univariate") {
+      // Hide Y, Z, Multi for all univariate
+      yDiv.style.display = "none";
+      zDiv.style.display = "none";
+      multiDiv.style.display = "none";
+
+      if (["hist", "kde", "box", "violin","pie"].includes(chart)) {
+        fillSelect(xSel, numericCols);
+      }
+      if (["count"].includes(chart)) {
+        fillSelect(xSel, categoricalCols);
+      }
+
+    } else if (analysis === "bivariate") {
+      // Hide Z and Multi by default
+      zDiv.style.display = "none";
+      multiDiv.style.display = "none";
+      document.querySelector("#z_div .form-label").textContent = "Z Column (Size / Z axis)";
+
+      if (chart === "scatter" || chart === "line" || chart === "regression" || chart === "hexbin" || chart === "joint") {
+        fillSelect(xSel, numericCols);
+        fillSelect(ySel, numericCols);
+      }
+
+      if (chart === "bar") {
+        fillSelect(xSel, categoricalCols);
+        fillSelect(ySel, numericCols);
+      }
+      
+      if (chart === "bubble") {
+        fillSelect(xSel, numericCols);
+        fillSelect(ySel, numericCols);
+        fillSelect(zSel, numericCols);
+        zDiv.style.display = "block"; // Show Z for bubble
+      }
+
+    } else if (analysis === "multivariate") {
+      // ########## START FIX ##########
+      if (chart === "heatmap" || chart === "pairplot" || chart === "parallel") {
+        // Show multi, hide x, y, z
+        xDiv.style.display = "none";
+        yDiv.style.display = "none";
+        zDiv.style.display = "none";
+        multiDiv.style.display = "block";
+        fillSelect(multiSel, numericCols);
+      }
+
+      if (chart === "3d_scatter") {
+        // Show x, y, z, hide multi
+        xDiv.style.display = "block";
+        yDiv.style.display = "block";
+        zDiv.style.display = "block";
+        multiDiv.style.display = "none";
+        
+        // Update label for clarity
+        document.querySelector("#z_div .form-label").textContent = "Z Column (Z axis)";
+
+        // Fill all 3 selects with numeric columns
+        fillSelect(xSel, numericCols);
+        fillSelect(ySel, numericCols);
+        fillSelect(zSel, numericCols);
+      }
+      // ########## END FIX ##########
+    
+    } else if (analysis === "time_series") {
+      const multiLabel = document.querySelector("#multi_div .form-label");
+      
+      // Default state for this analysis type (1 date col, 1 value col)
+      yDiv.style.display = "block";
+      zDiv.style.display = "none";
+      multiDiv.style.display = "none";
+      document.querySelector("#y_div .form-label").textContent = "Value Column";
+
+      if (chart === "candlestick") {
+        // Special case for Candlestick (needs 1 date col + 4 numeric cols)
+        yDiv.style.display = "none"; // Hide single Y
+        multiDiv.style.display = "block"; // Show multi-select
+        multiLabel.textContent = "Select 4 Columns (e.g., Open, High, Low, Close)";
+        fillSelect(multiSel, numericCols);
+      } else {
+        // All other charts use the default state
+        fillSelect(xSel, dateTimeCols);
+        fillSelect(ySel, numericCols);
+      }
+    }
+  }
+
+  function setChartOptions(a) {
+    const cs = document.getElementById("chart_select");
+    cs.innerHTML = "";
+    if (options[a]) {
+      options[a].forEach(o => {
+          let opt = document.createElement("option");
+          opt.value = o.v;
+          opt.text = o.t;
+          cs.appendChild(opt);
+        });
+    }
+  }
+  document.addEventListener("DOMContentLoaded", onAnalysisChange);
+</script>
 </body>
 </html>

@@ -2,92 +2,253 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Feature Engineering Dashboard</title>
+  <title>Feature Engineering</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 </head>
 <body class="bg-light">
-  <nav class="navbar navbar-light bg-white shadow-sm mb-4">
+  <nav class="navbar navbar-light bg-white shadow-sm mb-3">
     <div class="container">
-      <a class="navbar-brand fw-bold text-primary" href="{{ url_for('operation') }}">⚙️ Feature Engineering</a>
+      <a class="navbar-brand" href="{{ url_for('operation') }}">Feature Engineering</a>
       <div>
         <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('operation') }}">Back</a>
       </div>
     </div>
   </nav>
 
-  <main class="container mb-5">
-    <h4 class="mb-4">🧠 Feature Engineering Tools</h4>
+  <main class="container">
+    <h4>Feature Engineering</h4>
 
-    <!-- Feature Engineering Form -->
-    <form method="post" action="{{ url_for('feature_engineering_page') }}">
-      <div class="card shadow-sm mb-4">
-        <div class="card-body">
-          <p class="mb-3"><strong>Select an Action:</strong></p>
-
-          <!-- Radio Buttons for Actions -->
-          <div class="row row-cols-1 row-cols-md-2 g-2">
-            <div class="col"><input class="form-check-input me-2" type="radio" name="action" value="Missing Value Imputation" id="impute" required><label for="impute">Missing Value Imputation</label></div>
-            <div class="col"><input class="form-check-input me-2" type="radio" name="action" value="Drop Column" id="drop"><label for="drop">Drop Column</label></div>
-            <div class="col"><input class="form-check-input me-2" type="radio" name="action" value="Label Encoding" id="label"><label for="label">Label Encoding</label></div>
-            <div class="col"><input class="form-check-input me-2" type="radio" name="action" value="One-Hot Encoding" id="onehot"><label for="onehot">One-Hot Encoding</label></div>
-            <div class="col"><input class="form-check-input me-2" type="radio" name="action" value="Feature Scaling" id="scale"><label for="scale">Feature Scaling (StandardScaler)</label></div>
-            <div class="col"><input class="form-check-input me-2" type="radio" name="action" value="Outlier Removal" id="outlier"><label for="outlier">Outlier Removal (IQR Method)</label></div>
-            <div class="col"><input class="form-check-input me-2" type="radio" name="action" value="Log Transformation" id="log"><label for="log">Log Transformation</label></div>
-            <div class="col"><input class="form-check-input me-2" type="radio" name="action" value="Create New Feature" id="newfeat"><label for="newfeat">Create New Feature</label></div>
-            <div class="col"><input class="form-check-input me-2" type="radio" name="action" value="Correlation Filtering" id="corr"><label for="corr">Correlation Filtering</label></div>
-          </div>
-
-          <!-- Optional Column Selection -->
-          <div class="mt-4">
-            <label class="form-label">Optional: Column (if applicable)</label>
-            <select name="column" class="form-select">
-              <option value="">-- Select column (optional) --</option>
-              {% if cols %}
-                {% for c in cols %}
-                  <option value="{{ c }}">{{ c }}</option>
-                {% endfor %}
-              {% endif %}
-            </select>
-          </div>
-
-          <!-- Extra Expression Input (for new feature creation) -->
-          <div class="mt-3">
-            <label class="form-label">Extra Input (for 'Create New Feature', e.g. <code>new_col = col1 * col2</code>)</label>
-            <input type="text" class="form-control" name="extra" placeholder="e.g. profit_margin = revenue / cost">
-          </div>
-
-          <!-- Submit Button -->
-          <div class="mt-4">
-            <button type="submit" class="btn btn-primary w-100">Run Feature Engineering</button>
-          </div>
-        </div>
-      </div>
-    </form>
-
-    <!-- Result Display -->
-    {% if result %}
-    <div class="card shadow-sm mb-4">
-      <div class="card-body">
-        <h5 class="text-success">✅ Result Summary</h5>
-        <p><strong>Message:</strong> {{ result['message'] }}</p>
-        <p><strong>Shape Change:</strong> {{ result['shape_change'] }}</p>
-      </div>
+    <!-- Dataset -->
+    <form method="POST" id="load-form" class="mb-3">
+  <div class="row g-2 align-items-end">
+    <div class="col-md-6">
+      <label>Select Dataset</label>
+      <select name="dataset" class="form-select">
+        <option value="">-- Choose --</option>
+        {% for f in files %}
+          <option value="{{ f }}" {% if f==selected_file %}selected{% endif %}>{{ f }}</option>
+        {% endfor %}
+      </select>
     </div>
 
-    <div class="card shadow-sm">
-      <div class="card-body">
-        <h6>📊 Sample of Processed Data</h6>
-        <div class="table-responsive">
-          {{ result['sample_head'] | safe }}
-        </div>
-      </div>
+    <div class="col-md-2">
+      <button type="submit" name="load" value="1" class="btn btn-primary">Load</button>
     </div>
+  </div>
+</form>
+
+    {% if not selected_file %}
+      <p class="text-muted">Select a dataset to begin.</p>
+      
     {% endif %}
 
-    <div class="mt-4 text-center">
-      <a href="{{ url_for('operation') }}" class="btn btn-outline-secondary">⬅️ Back to Main Menu</a>
+    <!-- Tabs -->
+    <ul class="nav nav-tabs mb-3" id="feTabs" role="tablist">
+      <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#outliers">Outliers</a></li>
+      <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#imbalance">Imbalance</a></li>
+      <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#transform">Transformation</a></li>
+      <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#selection">Feature Selection</a></li>
+      <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#dimred">Dimensionality Reduction</a></li>
+    </ul>
+
+    <div class="tab-content">
+
+      <!-- ===== OUTLIERS ===== -->
+      <div class="tab-pane fade show active" id="outliers">
+        <form method="POST" class="mb-3">
+          <input type="hidden" name="dataset" value="{{ selected_file }}">
+          <input type="hidden" name="section" value="outliers">
+          <div class="row g-2">
+            <div class="col-md-4">
+              <label>Method</label>
+              <select name="outlier_method" class="form-select">
+                <option value="iqr">IQR</option>
+                <option value="zscore">Z-score</option>
+                <option value="iforest">IsolationForest</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label>Columns (numeric)</label>
+              <select name="cols_outliers" class="form-select" multiple>
+                {% for c in numeric_cols %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label>IQR thresh / Z thresh</label>
+              <input class="form-control mb-2" name="iqr_thresh" placeholder="IQR (1.5)"/>
+              <input class="form-control" name="z_thresh" placeholder="Z (3.0)"/>
+            </div>
+            <div class="col-12 mt-2">
+              <button name="preview" class="btn btn-warning">Preview Drop</button>
+              <button name="update" class="btn btn-danger">Update Data</button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <!-- ===== IMBALANCE ===== -->
+      <div class="tab-pane fade" id="imbalance">
+        <form method="POST" class="mb-3">
+          <input type="hidden" name="dataset" value="{{ selected_file }}">
+          <input type="hidden" name="section" value="imbalance">
+          <div class="row g-2">
+            <div class="col-md-4">
+              <label>Target column</label>
+              <select name="imb_target" class="form-select">
+                {% for c in target_options %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label>Strategy</label>
+              <select name="imb_strategy" class="form-select">
+                <option value="oversample">Random Oversample</option>
+                <option value="undersample">Random Undersample</option>
+                <option value="smote">SMOTE (if installed)</option>
+              </select>
+            </div>
+            <div class="col-12 mt-2">
+              <button name="preview" class="btn btn-warning">Preview Resample</button>
+              <button name="update" class="btn btn-danger">Update Data</button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <!-- ===== TRANSFORMATION ===== -->
+      <div class="tab-pane fade" id="transform">
+        <form method="POST" class="mb-3">
+          <input type="hidden" name="dataset" value="{{ selected_file }}">
+          <input type="hidden" name="section" value="transform">
+          <div class="row g-2">
+            <div class="col-md-4">
+              <label>Transformation</label>
+              <select name="transform_type" class="form-select" id="transform_type" onchange="onTransformChange()">
+                <option value="scaler">Scaling</option>
+                <option value="encode">Encoding</option>
+                <option value="log">Log Transform</option>
+              </select>
+            </div>
+            <div class="col-md-4" id="scaler_opts" style="display:block;">
+              <label>Scaler</label>
+              <select name="scaler_type" class="form-select">
+                <option value="standard">StandardScaler</option>
+                <option value="minmax">MinMaxScaler</option>
+                <option value="robust">RobustScaler</option>
+              </select>
+            </div>
+            <div class="col-md-4" id="encode_opts" style="display:none;">
+              <label>Encoding</label>
+              <select name="encode_type" class="form-select">
+                <option value="onehot">One-Hot</option>
+                <option value="label">Label Encode</option>
+              </select>
+            </div>
+            <div class="col-md-12 mt-2">
+              <label>Columns</label>
+              <select name="transform_cols" class="form-select" multiple>
+                {% for c in numeric_cols %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+                {% for c in categorical_cols %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-12 mt-2">
+              <button name="preview" class="btn btn-warning">Preview Transform</button>
+              <button name="update" class="btn btn-danger">Update Data</button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <!-- ===== FEATURE SELECTION (B) ===== -->
+      <div class="tab-pane fade" id="selection">
+        <form method="POST" class="mb-3">
+          <input type="hidden" name="dataset" value="{{ selected_file }}">
+          <input type="hidden" name="section" value="selection">
+          <div class="row g-2">
+            <div class="col-md-4">
+              <label>Method</label>
+              <select name="sel_method" class="form-select">
+                <option value="corr">Correlation Heatmap</option>
+                <option value="kbest">SelectKBest (ANOVA)</option>
+                <option value="rfe">RFE</option>
+                <option value="rf_importance">RandomForest Importance</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label>Target (required for selection methods)</label>
+              <select name="sel_target" class="form-select">
+                {% for c in target_options %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-md-2">
+              <label>K (top features)</label>
+              <input name="k_features" class="form-control" value="10"/>
+            </div>
+            <div class="col-md-2">
+              <label>Estimator</label>
+              <select name="estimator" class="form-select">
+                <option value="logreg">Logistic Regression</option>
+                <option value="rf">RandomForest</option>
+              </select>
+            </div>
+
+            <div class="col-12 mt-2">
+              <button name="preview" class="btn btn-warning">Preview Selection</button>
+              <button name="update" class="btn btn-danger">Apply Selection</button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <!-- ===== DIM REDUCTION ===== -->
+      <div class="tab-pane fade" id="dimred">
+        <form method="POST" class="mb-3">
+          <input type="hidden" name="dataset" value="{{ selected_file }}">
+          <input type="hidden" name="section" value="dimred">
+          <div class="row g-2">
+            <div class="col-md-4">
+              <label>Method</label>
+              <select name="dr_method" class="form-select">
+                <option value="pca">PCA</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label>n components</label>
+              <input name="n_components" class="form-control" value="2"/>
+            </div>
+            <div class="col-12 mt-2">
+              <button name="preview" class="btn btn-warning">Preview DR</button>
+              <button name="update" class="btn btn-danger">Apply DR</button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+    </div> <!-- tab-content -->
+
+    <!-- RESULTS & PREVIEW -->
+    <div class="mt-4">
+      {% if result_html %}
+        <div class="mb-3">{{ result_html | safe }}</div>
+      {% endif %}
+      {% if preview_html %}
+        <div class="card p-2">{{ preview_html | safe }}</div>
+      {% endif %}
     </div>
+
   </main>
+
+<script>
+  // transformation section toggles
+  function onTransformChange(){
+    const t = document.getElementById('transform_type').value;
+    document.getElementById('scaler_opts').style.display = (t==='scaler') ? 'block' : 'none';
+    document.getElementById('encode_opts').style.display = (t==='encode') ? 'block' : 'none';
+  }
+  document.addEventListener('DOMContentLoaded', function(){ onTransformChange(); });
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

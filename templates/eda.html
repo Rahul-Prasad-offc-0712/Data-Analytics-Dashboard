@@ -15,60 +15,125 @@
       </div>
     </div>
   </nav>
+  <form method="POST" class="mb-4">
+ <div class="row align-items-end">
+   <div class="col-md-6">
+     <label for="dataset" class="form-label">Select Dataset:</label>
+     <select name="dataset" id="dataset" class="form-select" required>
+       <option value="">-- Choose Dataset --</option>
+       {% for file in files %}
+         <option value="{{ file }}" {% if file == selected_file %}selected{% endif %}>{{ file }}</option>
+       {% endfor %}
+     </select>
+   </div>
+   <div class="col-md-3">
+     <button type="submit" class="btn btn-primary">Load Dataset</button>
+   </div>
+ </div>
+</form>
+  {% if selected_file %}
+  <!-- existing EDA display (summary, missing, dtypes, etc.) -->
 
   <main class="container">
     <h4 class="mb-3">Exploratory Data Analysis</h4>
-
+    
     <div class="card mb-3">
       <div class="card-body">
         <h6>Summary (describe)</h6>
         {% if summary %}
-          <div class="table-responsive">{{ summary | safe }}</div>
+        <div class="table-responsive">{{ summary | safe }}</div>
         {% else %}
-          <p class="text-muted">Summary not available.</p>
+        <p class="text-muted">Summary not available.</p>
         {% endif %}
       </div>
     </div>
 
+    <!-- ================= DROP COLUMNS SECTION ================= -->
+<div class="card mb-4 mt-3">
+  <div class="card-body">
+    <h5 class="mb-3 text-danger">Drop Columns</h5>
+
+    <form method="POST">
+      <input type="hidden" name="dataset" value="{{ selected_file }}">
+      <input type="hidden" name="action" value="drop_columns">
+
+      <div class="row">
+        <div class="col-md-8">
+          <label class="form-label">Select Columns to Drop</label>
+          <select class="form-select" name="drop_cols" multiple size="6">
+            {% for col in all_columns %}
+              <option value="{{ col }}"
+              {% if col in pending_drop_cols %}selected{% endif %}>{{ col }}</option>
+            {% endfor %}
+          </select>
+          <small class="text-muted">Use Ctrl/Cmd to select multiple columns.</small>
+        </div>
+
+        <div class="col-md-4 d-flex flex-column justify-content-end">
+          <button type="submit" name="preview_drop" class="btn btn-warning mb-2 w-100">
+            Preview Drop
+          </button>
+
+          <button type="submit" name="update_data" class="btn btn-danger w-100"
+          {% if not pending_drop_cols %}disabled{% endif %}>
+            Update Data
+          </button>
+        </div>
+      </div>
+
+      {% if pending_drop_cols %}
+        <div class="mt-2 text-muted">
+          Pending drop columns: {{ pending_drop_cols | join(", ") }}
+        </div>
+      {% endif %}
+    </form>
+  </div>
+</div>
+<!-- ======================================================== -->
+
+    
     <div class="row g-3">
       <div class="col-md-6">
         <div class="card mb-3">
           <div class="card-body">
             <h6>Missing values (%)</h6>
             {% if missing %}
-              <table class="table table-sm">
-                <thead><tr><th>Column</th><th>% missing</th></tr></thead>
-                <tbody>
+            <table class="table table-sm">
+              <thead><tr><th>Column</th><th>% missing</th></tr></thead>
+              <tbody>
                 {% for k,v in missing.items() %}
-                  <tr><td>{{ k }}</td><td>{{ "%.2f"|format(v) }}</td></tr>
+                <tr><td>{{ k }}</td><td>{{ "%.2f"|format(v) }}</td></tr>
                 {% endfor %}
-                </tbody>
-              </table>
+              </tbody>
+            </table>
             {% else %}
-              <p class="text-muted">No missing info.</p>
+            <p class="text-muted">No missing info.</p>
             {% endif %}
           </div>
         </div>
       </div>
-
+      
       <div class="col-md-6">
         <div class="card mb-3">
           <div class="card-body">
             <h6>Column dtypes</h6>
             {% if dtypes %}
-              <ul class="list-unstyled">
-                {% for k,v in dtypes.items() %}
-                  <li><strong>{{ k }}</strong>: {{ v }}</li>
-                {% endfor %}
-              </ul>
+            <ul class="list-unstyled">
+              {% for k,v in dtypes.items() %}
+              <li><strong>{{ k }}</strong>: {{ v }}</li>
+              {% endfor %}
+            </ul>
             {% else %}
-              <p class="text-muted">No dtypes info.</p>
+            <p class="text-muted">No dtypes info.</p>
             {% endif %}
           </div>
         </div>
       </div>
     </div>
-
+    
+    {% else %}
+      <p class="text-muted">Select a dataset from the dropdown to start analysis.</p>
+    {% endif %}
     <div class="mt-3">
       <a href="{{ url_for('operation') }}" class="btn btn-secondary">Back to Menu</a>
     </div>

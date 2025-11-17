@@ -1,0 +1,22 @@
+{
+  "features": [
+    "sepal_length",
+    "sepal_width",
+    "petal_length",
+    "petal_width"
+  ],
+  "numeric": [
+    "sepal_length",
+    "sepal_width",
+    "petal_length",
+    "petal_width"
+  ],
+  "categorical": [],
+  "target": "species",
+  "problem_type": "classification",
+  "target_classes": [
+    "setosa",
+    "versicolor",
+    "virginica"
+  ]
+}
