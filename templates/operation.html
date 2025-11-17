@@ -2,87 +2,94 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Choose Operation</title>
+  <title>BigData Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+  <style>
+    :root { --primary-bg: #f8f9fa; --card-hover: #e9ecef; }
+    body { background-color: var(--primary-bg); min-height: 100vh; }
+    .action-card { transition: transform 0.2s, box-shadow 0.2s; border: none; cursor: pointer; }
+    .action-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); background-color: white; }
+    .icon-box { font-size: 2.5rem; margin-bottom: 15px; }
+    .nav-link.active { font-weight: bold; color: #0d6efd !important; }
+  </style>
 </head>
-<body class="bg-light">
-  <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm mb-4">
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
     <div class="container">
-      <a class="navbar-brand" href="/">BigData Dashboard</a>
+      <a class="navbar-brand fw-bold" href="/"><i class="bi bi-bar-chart-line-fill"></i> BigData Dashboard</a>
       <div class="d-flex gap-2">
-        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('index') }}">Upload New</a>
-        <a class="btn btn-outline-success btn-sm" href="{{ url_for('dashboard_page') }}">Dashboard</a>
+        <a class="btn btn-outline-light btn-sm" href="{{ url_for('index') }}"><i class="bi bi-upload"></i> Upload New</a>
       </div>
     </div>
   </nav>
 
-  <main class="container">
-    <div class="text-center mb-4">
-      <h3>Select what you want to do</h3>
-      <p class="text-muted">Pick a module — each module has specific actions/options.</p>
+  <main class="container py-5">
+    <div class="text-center mb-5">
+      <h2 class="fw-bold text-dark">Data Operations Hub</h2>
+      <p class="text-muted">Select a module to begin processing your dataset.</p>
     </div>
 
-    <div class="row g-3">
+    <div class="row g-4">
       <div class="col-md-4">
-        <div class="card h-100">
-          <div class="card-body d-flex flex-column">
-            <h5>Exploratory Data Analysis</h5>
-            <p class="text-muted small">Summary, missing values, distributions, correlation.</p>
-            <a href="{{ url_for('eda') }}" class="mt-auto btn btn-primary">Open EDA</a>
+        <a href="{{ url_for('eda') }}" class="text-decoration-none">
+          <div class="card action-card h-100 p-4 text-center">
+            <div class="icon-box text-primary"><i class="bi bi-search"></i></div>
+            <h5 class="card-title text-dark">Exploratory Analysis</h5>
+            <p class="text-muted small">View summaries, missing values, and distributions.</p>
           </div>
-        </div>
+        </a>
       </div>
 
       <div class="col-md-4">
-        <div class="card h-100">
-          <div class="card-body d-flex flex-column">
-            <h5>Feature Engineering</h5>
-            <p class="text-muted small">Outliers, imputation, scaling, encoding, PCA.</p>
-            <a href="{{ url_for('feature_engineering_page') }}" class="mt-auto btn btn-success">Open Feature Engineering</a>
+        <a href="{{ url_for('feature_engineering_page') }}" class="text-decoration-none">
+          <div class="card action-card h-100 p-4 text-center">
+            <div class="icon-box text-success"><i class="bi bi-tools"></i></div>
+            <h5 class="card-title text-dark">Feature Engineering</h5>
+            <p class="text-muted small">Imputation, scaling, encoding, and transformation.</p>
           </div>
-        </div>
+        </a>
       </div>
 
       <div class="col-md-4">
-        <div class="card h-100">
-          <div class="card-body d-flex flex-column">
-            <h5>Visualization</h5>
-            <p class="text-muted small">Interactive Plotly charts with sampling for speed.</p>
-            <a href="{{ url_for('visualization_page') }}" class="mt-auto btn btn-info">Open Visualization</a>
+        <a href="{{ url_for('visualization_page') }}" class="text-decoration-none">
+          <div class="card action-card h-100 p-4 text-center">
+            <div class="icon-box text-info"><i class="bi bi-graph-up"></i></div>
+            <h5 class="card-title text-dark">Visualization</h5>
+            <p class="text-muted small">Generate interactive scatter, bar, and box plots.</p>
           </div>
-        </div>
+        </a>
       </div>
 
       <div class="col-md-4">
-        <div class="card h-100">
-          <div class="card-body d-flex flex-column">
-            <h5>Modelling</h5>
-            <p class="text-muted small">Train models (linear, RF, XGBoost) with scalable preprocess.</p>
-            <a href="{{ url_for('modeling_page') }}" class="mt-auto btn btn-warning">Open Modelling</a>
+        <a href="{{ url_for('modeling_page') }}" class="text-decoration-none">
+          <div class="card action-card h-100 p-4 text-center">
+            <div class="icon-box text-warning"><i class="bi bi-cpu"></i></div>
+            <h5 class="card-title text-dark">Modelling</h5>
+            <p class="text-muted small">Train ML models (Regression, XGBoost, RF).</p>
           </div>
-        </div>
+        </a>
       </div>
 
       <div class="col-md-4">
-        <div class="card h-100">
-          <div class="card-body d-flex flex-column">
-            <h5>Prediction</h5>
-            <p class="text-muted small">Batch or single-row prediction using saved models.</p>
-            <a href="{{ url_for('prediction_page') }}" class="mt-auto btn btn-secondary">Open Prediction</a>
+        <a href="{{ url_for('prediction_page') }}" class="text-decoration-none">
+          <div class="card action-card h-100 p-4 text-center">
+            <div class="icon-box text-secondary"><i class="bi bi-lightning-charge"></i></div>
+            <h5 class="card-title text-dark">Prediction</h5>
+            <p class="text-muted small">Run batch or single-row predictions.</p>
           </div>
-        </div>
+        </a>
       </div>
 
       <div class="col-md-4">
-        <div class="card h-100">
-          <div class="card-body d-flex flex-column">
-            <h5>Dashboard</h5>
-            <p class="text-muted small">High-level stats and quick charts.</p>
-            <a href="{{ url_for('dashboard_page') }}" class="mt-auto btn btn-dark">Open Dashboard</a>
+        <a href="{{ url_for('dashboard_page') }}" class="text-decoration-none">
+          <div class="card action-card h-100 p-4 text-center">
+            <div class="icon-box text-dark"><i class="bi bi-speedometer2"></i></div>
+            <h5 class="card-title text-dark">Overview Dashboard</h5>
+            <p class="text-muted small">High-level dataset statistics.</p>
           </div>
-        </div>
+        </a>
       </div>
     </div>
   </main>
