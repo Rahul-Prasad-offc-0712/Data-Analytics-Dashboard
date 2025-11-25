@@ -83,6 +83,7 @@
             <div class="col-12 mt-2">
               <button name="preview" class="btn btn-warning">Preview Drop</button>
               <button name="update" class="btn btn-danger">Update Data</button>
+              <!-- <a href="/download" class="btn btn-success">Download Dataset</a> -->
             </div>
           </div>
         </form>
@@ -105,7 +106,7 @@
               <select name="imb_strategy" class="form-select">
                 <option value="oversample">Random Oversample</option>
                 <option value="undersample">Random Undersample</option>
-                <option value="smote">SMOTE (if installed)</option>
+                <option value="smote">SMOTE</option>
               </select>
             </div>
             <div class="col-12 mt-2">
@@ -220,6 +221,10 @@
             <div class="col-12 mt-2">
               <button name="preview" class="btn btn-warning">Preview DR</button>
               <button name="update" class="btn btn-danger">Apply DR</button>
+              <a href="{{ url_for('download_dataset', filename=selected_file) }}"
+              class="btn btn-primary">
+              Download Dataset </a>
+
             </div>
           </div>
         </form>

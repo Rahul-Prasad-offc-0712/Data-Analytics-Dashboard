@@ -425,90 +425,119 @@ def feature_engineering_page():
 # -----------------------------------------------------------
 # ---------------- VISUALIZATION -----------------------------
 # -----------------------------------------------------------
-import pandas as pd  # Make sure pandas is imported
-import os
-from flask import request, session, flash, redirect, url_for, render_template
 
 # ... (other imports and app setup) ...
 
 @app.route("/visualization", methods=["GET", "POST"])
 def visualization_page():
-    # list files in upload directory
-    available_files = [f for f in os.listdir(UPLOAD_FOLDER) if f.endswith((".csv", ".parquet"))]
+    import re
+
+    DATE_REGEX = r"^\d{4}-\d{2}-\d{2}"  # Simple fast date pattern
+
+    # List uploaded files
+    available_files = [
+        f for f in os.listdir(UPLOAD_FOLDER)
+        if f.endswith((".csv", ".parquet"))
+    ]
 
     selected_file = None
     df = None
+    preview_html = None
     numeric_cols = []
     categorical_cols = []
     date_time_cols = []
     plot_html = None
-    preview_html = None
 
+    def safe_head(df, n=500):
+        """Read small portion of DF without loading full data."""
+        try:
+            if hasattr(df, "head") and hasattr(df.head(), "compute"):
+                return df.head(n).compute()
+            return df.head(n)
+        except:
+            # fallback small sample
+            try:
+                return df.head(100)
+            except:
+                return None
+
+    # ---------------------- POST ------------------------
     if request.method == "POST":
         selected_file = request.form.get("dataset")
+
         if selected_file:
             session["filepath"] = os.path.join(UPLOAD_FOLDER, selected_file)
 
         filepath = session.get("filepath")
+
         if not filepath:
             flash("Please select a dataset first.", "warning")
             return redirect(url_for("visualization_page"))
 
-        # load DF
+        # Load DF
         df = data_utils.load_bigdata(filepath)
 
-        # ----------------- NEW CHECK (POST) -----------------
         if df is None:
-            flash(f"Error: Failed to load or read the file: {os.path.basename(filepath)}. It might be corrupted or in an unsupported format.", "danger")
-            session.pop("filepath", None) # Clear the bad filepath
+            flash(f"Error reading file {os.path.basename(filepath)}", "danger")
+            session.pop("filepath", None)
             return redirect(url_for("visualization_page"))
-        # ----------------- END CHECK -----------------
 
-        # preview
-        if hasattr(df, "compute"):
-            try:
-                df_preview = df.compute().head(10)
-            except Exception:
-                df_preview = df.head(10)
-        else:
-            df_preview = df.head(10)
-
+        # --------- FAST PREVIEW (first 10 rows) ----------
+        df_preview = safe_head(df, 10)
         preview_html = df_preview.to_html(
             classes="table table-striped table-bordered",
             index=False
         )
 
-        # detect column types
-        if hasattr(df, "compute"):
-            df_for_types = df.compute()
-        else:
-            df_for_types = df.copy() # This line is now safe
+        # --------- FAST TYPE INFERENCE (first 500 rows) ----------
+        df_sample = safe_head(df, 500)
+        if df_sample is None:
+            flash("Error processing the dataset sample.", "danger")
+            return redirect(url_for("visualization_page"))
 
-        # ... (Column detection logic as before) ...
-        numeric_cols = df_for_types.select_dtypes(include=["number"]).columns.tolist()
-        other_cols = df_for_types.select_dtypes(exclude=["number"]).columns.tolist()
-        date_time_cols = []
-        categorical_cols = []
+        # Numeric Columns
+        numeric_cols = df_sample.select_dtypes(include=["number"]).columns.tolist()
+
+        # Non-numeric
+        other_cols = df_sample.select_dtypes(exclude=["number"]).columns.tolist()
+
+        # Detect datetime + categorical
         for col in other_cols:
-            try:
-                converted_col = pd.to_datetime(df_for_types[col], errors='coerce')
-                if not converted_col.isnull().all():
-                    date_time_cols.append(col)
-                else:
-                    categorical_cols.append(col)
-            except Exception:
-                categorical_cols.append(col)
-        # ... (End column detection) ...
+            col_series = df_sample[col].dropna()
 
-        # read form inputs
+            if col_series.empty:
+                categorical_cols.append(col)
+                continue
+
+            sample_val = str(col_series.iloc[0])
+
+            # If it doesn't look like a date → categorical
+            if not re.match(DATE_REGEX, sample_val):
+                categorical_cols.append(col)
+                continue
+
+            # Try converting only small sample of 50 rows
+            try:
+                converted = pd.to_datetime(
+                    col_series.head(50),
+                    errors="coerce",
+                    infer_datetime_format=True
+                )
+                if converted.isnull().all():
+                    categorical_cols.append(col)
+                else:
+                    date_time_cols.append(col)
+            except:
+                categorical_cols.append(col)
+
+        # -------------- Chart Generation -----------------
         analysis_type = request.form.get("analysis_type")
-        plot_type = request.form.get("chart_type")      
+        plot_type = request.form.get("chart_type")
         x = request.form.get("x")
         y = request.form.get("y")
         z = request.form.get("z")
         multi_cols = request.form.getlist("multi_cols") or None
 
-        # generate plot if chart selected
         if plot_type:
             plot_html = visualization_utils.generate_plot(
                 df=df,
@@ -523,44 +552,54 @@ def visualization_page():
 
         selected_file = os.path.basename(filepath)
 
-    else:  # GET
+    # ---------------------- GET ------------------------
+    else:
         if "filepath" in session:
             filepath = session["filepath"]
             selected_file = os.path.basename(filepath)
+
             df = data_utils.load_bigdata(filepath)
 
-            # ----------------- NEW CHECK (GET) -----------------
             if df is None:
-                flash(f"Error: Failed to load file from session: {selected_file}. Please select a new file.", "danger")
-                session.pop("filepath", None) # Clear the bad filepath
+                flash("Could not load dataset. Please re-upload.", "danger")
+                session.pop("filepath", None)
                 return redirect(url_for("visualization_page"))
-            # ----------------- END CHECK -----------------
 
-            if hasattr(df, "compute"):
-                df_for_types = df.compute()
-            else:
-                df_for_types = df.copy() # This line is now safe
+            df_sample = safe_head(df, 500)
+            df_preview = safe_head(df, 10)
 
-            preview_html = df_for_types.head(10).to_html(
+            preview_html = df_preview.to_html(
                 classes="table table-striped table-bordered",
                 index=False
             )
 
-            # ... (Column detection logic as before) ...
-            numeric_cols = df_for_types.select_dtypes(include=["number"]).columns.tolist()
-            other_cols = df_for_types.select_dtypes(exclude=["number"]).columns.tolist()
-            date_time_cols = []
-            categorical_cols = []
+            numeric_cols = df_sample.select_dtypes(include=["number"]).columns.tolist()
+            other_cols = df_sample.select_dtypes(exclude=["number"]).columns.tolist()
+
             for col in other_cols:
-                try:
-                    converted_col = pd.to_datetime(df_for_types[col], errors='coerce')
-                    if not converted_col.isnull().all():
-                        date_time_cols.append(col)
-                    else:
-                        categorical_cols.append(col)
-                except Exception:
+                col_series = df_sample[col].dropna()
+                if col_series.empty:
                     categorical_cols.append(col)
-            # ... (End column detection) ...
+                    continue
+
+                sample_val = str(col_series.iloc[0])
+
+                if not re.match(DATE_REGEX, sample_val):
+                    categorical_cols.append(col)
+                    continue
+
+                try:
+                    converted = pd.to_datetime(
+                        col_series.head(50),
+                        errors="coerce",
+                        infer_datetime_format=True
+                    )
+                    if converted.isnull().all():
+                        categorical_cols.append(col)
+                    else:
+                        date_time_cols.append(col)
+                except:
+                    categorical_cols.append(col)
 
     return render_template(
         "visualization.html",
@@ -570,8 +609,9 @@ def visualization_page():
         numeric_cols=numeric_cols,
         categorical_cols=categorical_cols,
         date_time_cols=date_time_cols,
-        plot_html=plot_html
+        plot_html=plot_html,
     )
+
 # -----------------------------------------------------------
 # ---------------- MODELLING SECTION ------------------------
 # -----------------------------------------------------------
@@ -777,6 +817,25 @@ def prediction_page():
     model_list = prediction_utils.list_saved_models()
     return render_template("prediction.html", model_list=model_list)
 
+@app.route('/download_dataset/<filename>')
+def download_dataset(filename):
+    # Ensure .csv extension
+    if not filename.endswith(".csv"):
+        filename = f"{filename}.csv"
+
+    file_path = os.path.join(UPLOAD_FOLDER, filename)
+
+    if not os.path.exists(file_path):
+        return "File not found", 404
+
+    return send_file(
+        file_path,
+        as_attachment=True,
+        download_name=filename
+    )
+
+
+
 
 @app.route("/get_model_inputs/<model_name>", methods=["GET"])
 def get_model_inputs(model_name):
@@ -830,6 +889,20 @@ def dashboard_page():
     df = data_utils.load_bigdata(filepath)
     stats = eda_utils.dashboard_summary(df)
     return render_template("dashboard.html", stats=stats)
+
+
+@app.route("/download", methods=["GET"])
+def download():
+    try:
+        return send_file(
+            "temp/processed_dataset.csv",
+            as_attachment=True,
+            download_name="processed_dataset.csv"
+        )
+    except FileNotFoundError:
+        flash("No dataset available to download.", "warning")
+        return redirect(url_for("feature_engineering_page"))
+
 
 
 # -----------------------------------------------------------
